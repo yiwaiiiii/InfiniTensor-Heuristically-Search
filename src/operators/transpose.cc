@@ -52,6 +52,117 @@ vector<int> TransposeObj::getOpAttrVector() const {
     return {type.underlying()};
 }
 
+double TransposeObj::getComputeTime() const {
+    double inputSize = inputs[0]->size();
+    double complexityFactor = 1.0;
+    auto inputDims = inputs[0]->getDims();
+    int rank = inputDims.size();
+    
+    bool hasNonLocalPermutation = false;
+    for (int i = 0; i < rank; ++i) {
+        if (std::abs(transposePermute[i] - i) > 1) {
+            hasNonLocalPermutation = true;
+            complexityFactor += 0.2 * std::abs(transposePermute[i] - i);
+        }
+    }
+    
+    bool hasInnerDimTranspose = false;
+    for (int i = rank - 2; i < rank; ++i) {
+        if (i >= 0 && transposePermute[i] != i) {
+            hasInnerDimTranspose = true;
+            complexityFactor += 0.5;
+        }
+    }
+    
+    bool isIdentityPermutation = true;
+    for (int i = 0; i < rank; ++i) {
+        if (transposePermute[i] != i) {
+            isIdentityPermutation = false;
+            break;
+        }
+    }
+    
+    if (isIdentityPermutation) {
+        return 1e-6;
+    }
+    
+    double transposeSpeed = 2e9;
+    if (hasNonLocalPermutation) {
+        transposeSpeed /= 2.0;
+    }
+    if (hasInnerDimTranspose) {
+        transposeSpeed /= 1.5;
+    }
+    
+    return (inputSize * complexityFactor) / transposeSpeed;
+}
+
+double TransposeObj::getMemoryCost() const {
+    double inputSize = inputs[0]->size();
+    double outputSize = outputs[0]->size();
+    double accessEfficiencyFactor = 1.0;
+    auto inputDims = inputs[0]->getDims();
+    int rank = inputDims.size();
+    
+    for (int i = rank - 2; i < rank; ++i) {
+        if (i >= 0 && transposePermute[i] != i) {
+            accessEfficiencyFactor += 0.5;
+        }
+    }
+    
+    for (int i = 0; i < rank; ++i) {
+        if (std::abs(transposePermute[i] - i) > 1) {
+            accessEfficiencyFactor += 0.1 * std::abs(transposePermute[i] - i);
+        }
+    }
+    
+    bool isIdentityPermutation = true;
+    for (int i = 0; i < rank; ++i) {
+        if (transposePermute[i] != i) {
+            isIdentityPermutation = false;
+            break;
+        }
+    }
+    
+    if (isIdentityPermutation) {
+        return 0.0;
+    }
+    
+    return (inputSize + outputSize) * accessEfficiencyFactor;
+}
+
+double TransposeObj::getParallelism() const {
+    double parallelism = std::sqrt(inputs[0]->size());
+    
+    bool isIdentityPermutation = true;
+    for (size_t i = 0; i < transposePermute.size(); ++i) {
+        if (transposePermute[i] != static_cast<int>(i)) {
+            isIdentityPermutation = false;
+            break;
+        }
+    }
+    
+    if (isIdentityPermutation) {
+        return 1.0;
+    }
+    
+    double parallelEfficiencyFactor = 0.7;
+    parallelEfficiencyFactor -= 0.05 * std::max(0, (int)transposePermute.size() - 3);
+    
+    int contiguousAxes = 0;
+    for (size_t i = 0; i < transposePermute.size() - 1; ++i) {
+        if (std::abs(transposePermute[i+1] - transposePermute[i]) == 1) {
+            contiguousAxes++;
+        }
+    }
+    parallelEfficiencyFactor += 0.05 * contiguousAxes;
+    
+    const double MAX_PARALLEL_UNITS = 512.0;
+    double effectiveParallelism = parallelism * parallelEfficiencyFactor;
+    
+    return std::min(effectiveParallelism, MAX_PARALLEL_UNITS);
+}
+
 DepthToSpaceObj::DepthToSpaceObj(GraphObj *graph, Tensor input, Tensor output,
                                  int blocksize, std::string mode)
     : OperatorObj(OpType::DepthToSpace, {input}, {output}) {
@@ -127,6 +238,49 @@ vector<int> DepthToSpaceObj::getWorkloadVector() const {
 
 vector<int> DepthToSpaceObj::getOpAttrVector() const {
     return {type.underlying()};
+}
+
+double DepthToSpaceObj::getComputeTime() const {
+    double inputSize = inputs[0]->size();
+    double reshapeCost = inputSize * 0.01;
+    double transposeCost = inputSize;
+    
+    if (D2SMode == 0) {
+        transposeCost *= 1.2;
+    }
+    
+    transposeCost *= (1.0 + std::log2(blockSize) * 0.1);
+    double finalReshapeCost = inputSize * 0.01;
+    double totalOps = reshapeCost + transposeCost + finalReshapeCost;
+    return totalOps / 2e9;
+}
+
+double DepthToSpaceObj::getMemoryCost() const {
+    double inputSize = inputs[0]->size();
+    double outputSize = outputs[0]->size();
+    double inputCost = inputSize;
+    double transposeCost = inputSize;
+    double memoryAccessFactor = 1.0 + std::log2(blockSize) * 0.1;
+    
+    if (D2SMode == 0) {
+        memoryAccessFactor *= 1.1;
+    }
+    
+    double outputCost = outputSize;
+    return (inputCost + transposeCost + outputCost) * memoryAccessFactor;
+}
+
+double DepthToSpaceObj::getParallelism() const {
+    double parallelism = std::sqrt(inputs[0]->size());
+    double blockSizeFactor = 1.0 / (1.0 + std::log2(blockSize) * 0.05);
+    double modeFactor = 1.0;
+    if (D2SMode == 1) {
+        modeFactor = 1.1;
+    }
+    
+    const double MAX_PARALLEL_UNITS = 512.0;
+    double effectiveParallelism = parallelism * blockSizeFactor * modeFactor;
+    return std::min(effectiveParallelism, MAX_PARALLEL_UNITS);
 }
 
 }; // namespace infini

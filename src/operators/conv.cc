@@ -28,7 +28,6 @@ string ConvBaseObj::toString() const {
     os << "p=[" << ph << "," << pw << "],";
     os << "s=[" << sh << "," << sw << "],";
     os << "d=[" << dh << "," << dw << "],";
-    // os << "act=" << enum_to_underlying(act) << ",";
     os << "input=" << inputs[0]->getGuid() << ",";
     os << "weight=" << inputs[1]->getGuid() << ",";
     os << "output=" << outputs[0]->getGuid() << ")";
@@ -40,7 +39,6 @@ vector<int> ConvBaseObj::getWorkloadVector() const {
 }
 
 vector<int> ConvBaseObj::getOpAttrVector() const {
-    // IT_TODO_HALT(); // should padding mode / ph+pw be in attrs?
     return {type.underlying(), c, f, r, s, ph, pw, sh, sw, dh, dw};
 }
 
@@ -93,17 +91,13 @@ optional<vector<Shape>> ConvObj::inferShape(const TensorVec &inputs) {
     s = weight->getDims()[3];
     int on = n, oc = f;
     int oh = 0, ow = 0;
-    // For NCHW+FCRS layout, C of input is divisable by C of weight
     IT_ASSERT(input->getDims()[1] % weight->getDims()[1] == 0);
-    // Set padding size
     if (padding == PaddingMode::Other) {
         oh = (h - (r - sh) * dh + ph * 2) / sh;
         ow = (w - (s - sw) * dw + pw * 2) / sw;
     } else if (padding == PaddingMode::Same) {
         oh = h / sh;
         ow = w / sw;
-        // ph = (h - oh * sh + (r - sh) * dh) / 2;
-        // pw = (w - ow * sw + (s - sw) * dw) / 2;
     } else if (padding == PaddingMode::Valid) {
         int ph = 0;
         int pw = 0;
@@ -174,7 +168,6 @@ string Conv3dObj::toString() const {
     os << "p=[" << pd << "," << ph << "," << pw << "],";
     os << "s=[" << sd << "," << sh << "," << sw << "],";
     os << "d=[" << dd << "," << dh << "," << dw << "],";
-    // os << "act=" << enum_to_underlying(act) << ",";
     os << "input=" << inputs[0]->getGuid() << ",";
     os << "weight=" << inputs[1]->getGuid() << ",";
     os << "output=" << outputs[0]->getGuid() << ")";
@@ -198,9 +191,7 @@ optional<vector<Shape>> Conv3dObj::inferShape(const TensorVec &inputs) {
     int od = 0;
     int oh = 0;
     int ow = 0;
-    // For NCDHW+FCQRS layout, C of input is divisable by C of weight.
     IT_ASSERT(input->getDims()[1] % weight->getDims()[1] == 0);
-    // Set padding size.
     if (padding == PaddingMode::Other) {
         od = (d - (q - sd) * dd + pd * 2) / sd;
         oh = (h - (r - sh) * dh + ph * 2) / sh;
@@ -338,17 +329,13 @@ ConvBackwardFilterObj::inferShape(const TensorVec &inputs) {
     s = diffY->getDims()[3];
     int on = n, oc = f;
     int oh = 0, ow = 0;
-    // For NCHW+FCRS layout, C of input is divisable by C of weight
     IT_ASSERT(inputX->getDims()[1] % diffY->getDims()[1] == 0);
-    // Set padding size
     if (padding == PaddingMode::Other) {
         oh = (h - (r - sh) * dh + ph * 2) / sh;
         ow = (w - (s - sw) * dw + pw * 2) / sw;
     } else if (padding == PaddingMode::Same) {
         oh = h / sh;
         ow = w / sw;
-        // ph = (h - oh * sh + (r - sh) * dh) / 2;
-        // pw = (w - ow * sw + (s - sw) * dw) / 2;
     } else if (padding == PaddingMode::Valid) {
         int ph = 0;
         int pw = 0;
@@ -421,6 +408,163 @@ void ConvTransposed2dNHWCObj::setAuxilaryAttributes(PaddingMode mode) {
     } else if (mode == PaddingMode::Valid) {
         ph = pw = 0;
     }
+}
+
+double ConvBaseObj::getComputeTime() const {
+    const auto &inputDims = inputs[0]->getDims();
+    const auto &weightDims = inputs[1]->getDims();
+    const auto &outputDims = outputs[0]->getDims();
+    
+    int64_t n, c, f, r, s;
+    
+    n = this->n;
+    c = this->c;
+    f = this->f;
+    r = this->r;
+    s = this->s;
+    
+    int64_t oh = outputDims.size() >= 4 ? outputDims[2] : 1;
+    int64_t ow = outputDims.size() >= 4 ? outputDims[3] : 1;
+    
+    double operations = static_cast<double>(n) * f * oh * ow * r * s * c;
+    
+    return operations / 1.0e9;
+}
+
+double ConvBaseObj::getMemoryCost() const {
+    double cost = 0.0;
+    
+    cost += inputs[0]->size();
+    
+    cost += inputs[1]->size();
+    
+    cost += outputs[0]->size();
+    
+    return cost;
+}
+
+double ConvBaseObj::getParallelism() const {
+    const auto &outputDims = outputs[0]->getDims();
+    
+    int64_t n = outputDims[0];
+    int64_t f = outputDims[1];
+    
+    double spatialParallelism = 1.0;
+    if (outputDims.size() >= 4) {
+        spatialParallelism = outputDims[2] * outputDims[3];
+    } else if (outputDims.size() >= 5) {
+        spatialParallelism = outputDims[2] * outputDims[3] * outputDims[4];
+    }
+    
+    double parallelism = n * f * spatialParallelism;
+    
+    const double MAX_PARALLEL_UNITS = 10240.0;
+    return std::min(parallelism, MAX_PARALLEL_UNITS);
+}
+
+double ConvObj::getComputeTime() const {
+    return ConvBaseObj::getComputeTime();
+}
+
+double ConvObj::getMemoryCost() const {
+    return ConvBaseObj::getMemoryCost();
+}
+
+double ConvObj::getParallelism() const {
+    return ConvBaseObj::getParallelism();
+}
+
+double Conv3dObj::getComputeTime() const {
+    const auto &inputDims = inputs[0]->getDims();
+    const auto &weightDims = inputs[1]->getDims();
+    const auto &outputDims = outputs[0]->getDims();
+    
+    int64_t n = inputDims[0];
+    int64_t c = inputDims[1];
+    
+    int64_t f = weightDims[0];
+    int64_t q = weightDims[2];
+    int64_t r = weightDims[3];
+    int64_t s = weightDims[4];
+    
+    int64_t od = outputDims[2];
+    int64_t oh = outputDims[3];
+    int64_t ow = outputDims[4];
+    
+    double operations = static_cast<double>(n) * f * od * oh * ow * q * r * s * c;
+    
+    return operations / 1.0e9;
+}
+
+double Conv3dObj::getMemoryCost() const {
+    return ConvBaseObj::getMemoryCost() * 1.2;
+}
+
+double Conv3dObj::getParallelism() const {
+    const auto &outputDims = outputs[0]->getDims();
+    
+    int64_t n = outputDims[0];
+    int64_t f = outputDims[1];
+    int64_t d = outputDims[2];
+    int64_t h = outputDims[3];
+    int64_t w = outputDims[4];
+    
+    double parallelism = n * f * d * h * w;
+    
+    const double MAX_PARALLEL_UNITS = 10240.0;
+    return std::min(parallelism, MAX_PARALLEL_UNITS);
+}
+
+double ConvTransposed2dObj::getComputeTime() const {
+    const auto &inputDims = inputs[0]->getDims();
+    const auto &weightDims = inputs[1]->getDims();
+    const auto &outputDims = outputs[0]->getDims();
+    
+    int64_t n = inputDims[0];
+    int64_t f = inputDims[1];
+    
+    int64_t r = weightDims[2];
+    int64_t s = weightDims[3];
+    
+    int64_t oh = outputDims[2];
+    int64_t ow = outputDims[3];
+    int64_t oc = outputDims[1];
+    
+    double operations = static_cast<double>(n) * oc * oh * ow * r * s * (f / group);
+    
+    return operations / 0.9e9;
+}
+
+double ConvBackwardFilterObj::getComputeTime() const {
+    return ConvBaseObj::getComputeTime() * 2.5;
+}
+
+double ConvBackwardFilterObj::getMemoryCost() const {
+    return ConvBaseObj::getMemoryCost() * 2.0;
+}
+
+double ConvBackwardFilterObj::getParallelism() const {
+    return ConvBaseObj::getParallelism() * 0.9;
+}
+
+double ConvTransposed2dObj::getMemoryCost() const {
+    return ConvBaseObj::getMemoryCost() * 1.3;
+}
+
+double ConvTransposed2dObj::getParallelism() const {
+    return ConvBaseObj::getParallelism() * 0.95;
+}
+
+double ConvTransposed2dNHWCObj::getComputeTime() const {
+    return ConvBaseObj::getComputeTime() * 1.05 * 1.2;
+}
+
+double ConvTransposed2dNHWCObj::getMemoryCost() const {
+    return ConvBaseObj::getMemoryCost() * 1.3 * 0.95;
+}
+
+double ConvTransposed2dNHWCObj::getParallelism() const {
+    return ConvBaseObj::getParallelism() * 0.95;
 }
 
 } // namespace infini

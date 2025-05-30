@@ -21,6 +21,10 @@ class LayerNormObj : public OperatorObj {
     int getAxis() const { return axis; }
     int getStashType() const { return stash_type; }
 
+    double getComputeTime() const override;
+    double getMemoryCost() const override;
+    double getParallelism() const override;
+
   private:
     vector<int> getWorkloadVector() const override;
     vector<int> getOpAttrVector() const override;

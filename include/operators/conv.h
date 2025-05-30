@@ -120,6 +120,10 @@ class ConvBaseObj : public OperatorObj {
     ActType getAct() const { return act; }
     virtual int getNumGroups() const = 0;
 
+    double getComputeTime() const override;
+    double getMemoryCost() const override;
+    double getParallelism() const override;
+
   private:
     vector<int> getWorkloadVector() const override;
     vector<int> getOpAttrVector() const override;
@@ -144,6 +148,10 @@ class ConvObj : public ConvBaseObj {
 
     optional<vector<Shape>> inferShape(const TensorVec &inputs) override;
     int getNumGroups() const override { return c / getChannelPerGroup(); }
+
+    double getComputeTime() const override;
+    double getMemoryCost() const override;
+    double getParallelism() const override;
 
   private:
     void setAuxilaryAttributes(PaddingMode mode) override;
@@ -179,6 +187,10 @@ class Conv3dObj : public ConvBaseObj {
         return tuple(pd, ph, pw, sd, sh, sw, dd, dh, dw);
     }
 
+    double getComputeTime() const override;
+    double getMemoryCost() const override;
+    double getParallelism() const override;
+
   private:
     void setAuxilaryAttributes(PaddingMode mode) override;
 };
@@ -201,6 +213,10 @@ class ConvBackwardFilterObj : public ConvBaseObj {
     optional<vector<Shape>> inferShape(const TensorVec &inputs) override;
     ActType getAct() const { return act; }
     int getNumGroups() const override { return c / getChannelPerGroup(); }
+
+    double getComputeTime() const override;
+    double getMemoryCost() const override;
+    double getParallelism() const override;
 
   private:
     void setAuxilaryAttributes(PaddingMode mode) override;
@@ -229,6 +245,10 @@ class ConvTransposed2dObj : public ConvBaseObj {
     int getNumGroups() const override { return group; }
     std::pair<int, int> getOutputPadding() const { return {oph, opw}; }
 
+    double getComputeTime() const override;
+    double getMemoryCost() const override;
+    double getParallelism() const override;
+
   private:
     void setAuxilaryAttributes(PaddingMode mode) override;
 };
@@ -254,6 +274,10 @@ class ConvTransposed2dNHWCObj : public ConvBaseObj {
 
     optional<vector<Shape>> inferShape(const TensorVec &inputs) override;
     int getNumGroups() const override { return group; }
+
+    double getComputeTime() const override;
+    double getMemoryCost() const override;
+    double getParallelism() const override;
 
   private:
     void setAuxilaryAttributes(PaddingMode mode) override;

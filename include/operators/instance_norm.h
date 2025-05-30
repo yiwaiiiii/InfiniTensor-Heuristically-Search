@@ -14,6 +14,10 @@ class InstanceNormObj : public OperatorObj {
     int numOutputs() const override { return outputs.size(); }
     float getEps() const { return eps; }
 
+    double getComputeTime() const override;
+    double getMemoryCost() const override;
+    double getParallelism() const override;
+
   private:
     vector<int> getWorkloadVector() const override;
     vector<int> getOpAttrVector() const override;

@@ -31,7 +31,11 @@ class GBMMObj : public OperatorObj {
     GBMMObj(GraphObj *graph, Tensor A, Tensor B, Tensor C, const int dilation,
             Tensor bias = nullptr, ActType act = ActType::None);
     OP_CLONE(GBMMObj);
-
+    
+    double getComputeTime() const override;
+    double getMemoryCost() const override;
+    double getParallelism() const override; 
+    
     std::string toString() const override;
     optional<vector<Shape>> inferShape(const TensorVec &inputs) override;
 

@@ -73,6 +73,11 @@ class OperatorObj : public Object {
     HashType hash() const;
 
   public:
+    // 性能评估相关接口
+    virtual double getComputeTime() const { return 0.0; }  // 默认计算时间
+    virtual double getMemoryCost() const { return 0.0; }   // 默认内存访问成本
+    virtual double getParallelism() const { return 1.0; }  // 默认并行度
+    
   public: // getter and setter
     const TensorVec &getInputs() const { return inputs; }
     const TensorVec &getOutputs() const { return outputs; }

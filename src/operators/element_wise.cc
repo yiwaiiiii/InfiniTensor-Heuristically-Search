@@ -26,7 +26,6 @@ std::string ElementWiseObj::toString() const {
     return os.str();
 }
 
-// use output dim or inputs dim?
 vector<int> ElementWiseObj::getWorkloadVector() const {
     vector<int> ret = outputs[0]->getDims();
     ret.emplace(ret.begin(), type.underlying());
@@ -35,6 +34,45 @@ vector<int> ElementWiseObj::getWorkloadVector() const {
 
 vector<int> ElementWiseObj::getOpAttrVector() const {
     return {type.underlying()};
+}
+
+double ElementWiseObj::getComputeTime() const {
+    double outputSize = outputs[0]->size();
+    double complexityFactor = 1.0;
+    switch (type.underlying()) {
+        case OpType::Add:
+        case OpType::Sub:
+            complexityFactor = 1.0;
+            break;
+        case OpType::Mul:
+            complexityFactor = 1.1;
+            break;
+        case OpType::Div:
+        case OpType::Pow:
+            complexityFactor = 1.3;
+            break;
+        case OpType::Equal:
+        case OpType::Greater:
+        case OpType::Less:
+            complexityFactor = 0.8;
+            break;
+        default:
+            complexityFactor = 1.0;
+    }
+    return outputSize * complexityFactor / 1e9;
+}
+
+double ElementWiseObj::getMemoryCost() const {
+    double inputsSize = inputs[0]->size() + inputs[1]->size();
+    double outputSize = outputs[0]->size();
+    return inputsSize + outputSize;
+}
+
+double ElementWiseObj::getParallelism() const {
+    double outputSize = outputs[0]->size();
+    const double MAX_PARALLEL_UNITS = 1024.0;
+    double utilizationFactor = 0.95;
+    return std::min(outputSize * utilizationFactor, MAX_PARALLEL_UNITS);
 }
 
 MSELossObj::MSELossObj(GraphObj *graph, Tensor input0, Tensor input1,
@@ -69,7 +107,6 @@ std::string MSELossObj::toString() const {
     return os.str();
 }
 
-// use output dim or inputs dim?
 vector<int> MSELossObj::getWorkloadVector() const {
     vector<int> ret = outputs[0]->getDims();
     ret.emplace(ret.begin(), type.underlying());
@@ -78,4 +115,29 @@ vector<int> MSELossObj::getWorkloadVector() const {
 
 vector<int> MSELossObj::getOpAttrVector() const { return {type.underlying()}; }
 
-}; // namespace infini
+double MSELossObj::getComputeTime() const {
+    double inputSize = inputs[0]->size();
+    double opsPerElement = 2.0;
+    if (reductionMode != None) {
+        opsPerElement += std::log2(inputSize) / inputSize;
+    }
+    return inputSize * opsPerElement / 1e9;
+}
+
+double MSELossObj::getMemoryCost() const {
+    double inputsSize = inputs[0]->size() + inputs[1]->size();
+    double outputSize = outputs[0]->size();
+    double intermediateSize = inputs[0]->size();
+    return inputsSize + outputSize + intermediateSize;
+}
+
+double MSELossObj::getParallelism() const {
+    if (reductionMode == None) {
+        return std::min(static_cast<double>(inputs[0]->size()), 1024.0);
+    } else {
+        double logParallelism = std::log2(inputs[0]->size());
+        return std::min(logParallelism * 32.0, 512.0);
+    }
+}
+
+} // namespace infini

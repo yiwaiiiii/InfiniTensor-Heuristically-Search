@@ -28,6 +28,10 @@ class WhereObj : public OperatorObj {
     int numInputs() const override { return inputs.size(); }
     int numOutputs() const override { return 1; }
 
+    double getComputeTime() const override;
+    double getMemoryCost() const override;
+    double getParallelism() const override;
+
   private:
     vector<int> getWorkloadVector() const override;
     vector<int> getOpAttrVector() const override;

@@ -31,6 +31,10 @@ class MemBoundObj : public OperatorObj {
         return {expr, hash};
     }
 
+    double getComputeTime() const override;
+    double getMemoryCost() const override;
+    double getParallelism() const override;
+    
   private:
     vector<int> getWorkloadVector() const override;
     vector<int> getOpAttrVector() const override;

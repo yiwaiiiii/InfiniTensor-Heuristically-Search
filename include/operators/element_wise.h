@@ -27,6 +27,10 @@ class ElementWiseObj : public OperatorObj {
     int numInputs() const override { return 2; }
     int numOutputs() const override { return 1; }
 
+    double getComputeTime() const override;
+    double getMemoryCost() const override;
+    double getParallelism() const override;
+    
   private:
     vector<int> getWorkloadVector() const override;
     vector<int> getOpAttrVector() const override;
@@ -44,6 +48,10 @@ class MSELossObj : public OperatorObj {
     std::string toString() const override;
     int numInputs() const override { return 2; }
     int numOutputs() const override { return 1; }
+
+    double getComputeTime() const override;
+    double getMemoryCost() const override;
+    double getParallelism() const override;
 
   private:
     Reduction reductionMode;

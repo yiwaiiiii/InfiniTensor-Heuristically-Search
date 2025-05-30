@@ -34,4 +34,36 @@ vector<int> ActivationBackwardObj::getOpAttrVector() const {
     return {type.underlying()};
 }
 
-}; // namespace infini
+double ActivationBackwardObj::getComputeTime() const {
+    double complexity = 1.0;
+    switch (type.underlying()) {
+        case OpType::ReluBackward:
+            complexity = 1.0;  
+            break;
+        case OpType::SigmoidBackward:
+            complexity = 3.0;  
+            break;
+        case OpType::TanhBackward:
+            complexity = 3.0;  
+            break;
+        default:
+            complexity = 2.0;  
+    }
+    
+    return inputs[0]->size() * complexity / 1e9;  
+}
+
+double ActivationBackwardObj::getMemoryCost() const {
+    double cost = 0;
+    for (const auto &input : inputs) {
+        cost += input->size();  
+    }
+    cost += outputs[0]->size();  
+    return cost;
+}
+
+double ActivationBackwardObj::getParallelism() const {
+    return outputs[0]->size() / 16.0;  
+}
+
+} // namespace infini

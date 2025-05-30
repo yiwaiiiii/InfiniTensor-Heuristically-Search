@@ -22,6 +22,10 @@ class ConcatObj : public OperatorObj {
     ConcatObj(GraphObj *graph, TensorVec inputs, Tensor output, int dim);
     OP_CLONE(ConcatObj);
 
+    double getComputeTime() const override;
+    double getMemoryCost() const override; 
+    double getParallelism() const override;
+    
     optional<vector<Shape>> inferShape(const TensorVec &inputs) override;
 
     std::string toString() const override;

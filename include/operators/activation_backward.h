@@ -8,7 +8,11 @@ class ActivationBackwardObj : public OperatorObj {
                           Tensor x, Tensor diff_x);
     OP_CLONE(ActivationBackwardObj);
     optional<vector<Shape>> inferShape(const TensorVec &inputs) override;
-
+    
+    double getComputeTime() const override;
+    double getMemoryCost() const override; 
+    double getParallelism() const override;
+    
     std::string toString() const override;
     int numInputs() const override { return 3; }
     int numOutputs() const override { return 1; }

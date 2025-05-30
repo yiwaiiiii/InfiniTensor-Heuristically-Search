@@ -16,6 +16,7 @@ optional<vector<Shape>> ExtendObj::inferShape(const TensorVec &inputs) {
     ret[dim] = ret[dim] * (num + 1);
     return {{ret}};
 }
+
 std::string ExtendObj::toString() const {
     std::ostringstream os;
     os << "Extend[" << getGuid() << "]";
@@ -38,6 +39,34 @@ vector<int> ExtendObj::getWorkloadVector() const {
 
 vector<int> ExtendObj::getOpAttrVector() const {
     return {type.underlying(), dim, num};
+}
+
+double ExtendObj::getComputeTime() const {
+    double inputSize = inputs[0]->size();
+    double outputSize = outputs[0]->size();
+    double extendRatio = num + 1;
+    double indexMappingCost = std::log2(extendRatio) * 0.1;
+    return outputSize * (1.0 + indexMappingCost) / 1e9;
+}
+
+double ExtendObj::getMemoryCost() const {
+    double inputSize = inputs[0]->size();
+    double outputSize = outputs[0]->size();
+    return inputSize + outputSize;
+}
+
+double ExtendObj::getParallelism() const {
+    const auto &inputDims = inputs[0]->getDims();
+    int64_t nonExtendSize = 1;
+    for (size_t i = 0; i < inputDims.size(); ++i) {
+        if (i != (size_t)dim) {
+            nonExtendSize *= inputDims[i];
+        }
+    }
+    int64_t extendDimSize = inputDims[dim] * (num + 1);
+    double parallelism = nonExtendSize * std::min(extendDimSize, (int64_t)16);
+    const double MAX_PARALLEL_UNITS = 1024.0;
+    return std::min(parallelism, MAX_PARALLEL_UNITS);
 }
 
 } // namespace infini

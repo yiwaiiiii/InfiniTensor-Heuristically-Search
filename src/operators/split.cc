@@ -81,4 +81,62 @@ string SplitObj::toString() const {
     return os.str();
 }
 
+double SplitObj::getComputeTime() const {
+    double inputSize = inputs[0]->size();
+    const auto &inputDims = inputs[0]->getDims();
+    int rank = inputDims.size();
+    
+    double copyFactor = 0.05;
+    if (dim > 0) {
+        copyFactor = 0.2 + (double)dim / rank * 0.8;
+    }
+    
+    double splitFactor = 1.0 + std::log2(num) * 0.05;
+    double totalOps = inputSize * copyFactor * splitFactor;
+    return totalOps / 10e9;
+}
+
+double SplitObj::getMemoryCost() const {
+    double inputCost = inputs[0]->size();
+    double outputCost = 0.0;
+    for (int i = 0; i < num; i++) {
+        if (outputs[i] != nullptr) {
+            outputCost += outputs[i]->size();
+        }
+    }
+    
+    double accessFactor = 1.0;
+    const auto &inputDims = inputs[0]->getDims();
+    int rank = inputDims.size();
+    
+    if (dim > rank / 2) {
+        accessFactor = 1.0 + (double)(dim - rank / 2) / (rank / 2) * 0.5;
+    }
+    
+    if (dim == 0) {
+        accessFactor *= 0.2;
+    }
+    
+    return (inputCost + outputCost) * accessFactor;
+}
+
+double SplitObj::getParallelism() const {
+    double splitParallelism = std::min(static_cast<double>(num), 32.0);
+    double withinSplitParallelism = 1.0;
+    
+    if (!outputs.empty() && outputs[0] != nullptr) {
+        double avgOutputSize = outputs[0]->size();
+        withinSplitParallelism = std::sqrt(avgOutputSize);
+    } else if (!inputs.empty()) {
+        double avgOutputSize = inputs[0]->size() / num;
+        withinSplitParallelism = std::sqrt(avgOutputSize);
+    }
+    
+    withinSplitParallelism = std::min(withinSplitParallelism, 64.0);
+    double totalParallelism = splitParallelism * withinSplitParallelism;
+    const double MAX_PARALLEL_UNITS = 1024.0;
+    
+    return std::min(totalParallelism, MAX_PARALLEL_UNITS);
+}
+
 } // namespace infini

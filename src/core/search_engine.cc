@@ -96,18 +96,49 @@ std::vector<Graph> SearchEngine::search(const Graph &graph) {
     std::vector<Graph> results;
     for (auto mergedGraph : mergedGraphs) {
         auto mutatedGraphs = searchMutation(mergedGraph);
-        for (size_t i = 0; i < std::min(mutatedGraphs.size(), GRAPH_SIZE);
-             i++) {
-            results.emplace_back(mutatedGraphs[i]);
+        for (auto &mutatedGraph : mutatedGraphs) {
+            // 使用启发式函数判断是否应该融合
+            if (runtimeExec->shouldFuse(graph, mutatedGraph)) {
+                results.push_back(mutatedGraph);
+            } else {
+                // 如果启发式判断不应该融合，但是是局部最优解，也可以保留
+                // 防止启发式过于激进导致错过好的解
+                if (results.size() < GRAPH_SIZE / 4) {
+                    results.push_back(mutatedGraph);
+                }
+            }
         }
     }
 
-    sort(results.begin(), results.end(), [&](Graph x, Graph y) {
-        return runtimeExec->getPerfTime(x) < runtimeExec->getPerfTime(y);
-    }); // compare with perf time
+    // 按性能指标排序，性能最好的放在前面
+    std::sort(results.begin(), results.end(),
+        [this](const Graph &x, const Graph &y) {
+            // 获取综合性能指标
+            PerfMetrics mX = runtimeExec->getPerfMetrics(x, false);
+            PerfMetrics mY = runtimeExec->getPerfMetrics(y, false);
+            
+            // 计算性能总分（分数越小越好）
+            // 计算时间权重最大，内存成本次之，并行度可以提高性能所以为负权重
+            double scoreX = mX.computeTime + 0.5 * mX.memoryCost - 0.2 * mX.parallelism;
+            double scoreY = mY.computeTime + 0.5 * mY.memoryCost - 0.2 * mY.parallelism;
+            
+            return scoreX < scoreY;
+        });
+
+    // 保留前GRAPH_SIZE个最优结果
     if (results.size() > GRAPH_SIZE) {
         results.resize(GRAPH_SIZE);
     }
+    
+    // 输出最优解的性能指标，便于调试
+    if (!results.empty()) {
+        auto bestMetrics = runtimeExec->getPerfMetrics(results[0], false);
+        std::cout << "[INFO] Best solution metrics - "
+                 << "Compute: " << bestMetrics.computeTime << ", "
+                 << "Memory: " << bestMetrics.memoryCost << ", "
+                 << "Parallelism: " << bestMetrics.parallelism << std::endl;
+    }
+    
     return results;
 }
 

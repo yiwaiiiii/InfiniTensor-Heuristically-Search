@@ -32,6 +32,10 @@ class RecvObj : public OperatorObj {
     int getDestinationRank() const { return destination; }
     inline Shape getShape() const { return dims; }
 
+    double getComputeTime() const override;
+    double getMemoryCost() const override;
+    double getParallelism() const override;
+
   private:
     vector<int> getWorkloadVector() const override;
     vector<int> getOpAttrVector() const override;

@@ -36,7 +36,11 @@ class BatchNormObj : public OperatorObj {
     OP_CLONE(BatchNormObj);
     optional<vector<Shape>> inferShape(const TensorVec &inputs) override;
     std::string toString() const override;
-
+    
+    double getComputeTime() const override;
+    double getMemoryCost() const override; 
+    double getParallelism() const override;
+    
     // output size will be 3 when training
     int numInputs() const override { return 5; }
     int numOutputs() const override { return outputs.size(); }

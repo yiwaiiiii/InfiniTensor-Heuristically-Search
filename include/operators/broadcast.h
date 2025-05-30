@@ -23,6 +23,10 @@ class BroadcastObj : public OperatorObj {
     BroadcastObj(GraphObj *graph, Tensor input, Tensor output, int root);
     OP_CLONE(BroadcastObj);
 
+    double getComputeTime() const override;
+    double getMemoryCost() const override; 
+    double getParallelism() const override;
+    
     int numInputs() const override { return 1; }
     int numOutputs() const override { return 1; }
 

@@ -33,6 +33,7 @@ optional<vector<Shape>> PadObj::inferShape(const TensorVec &inputs) {
 
     return {{dims}};
 }
+
 std::string PadObj::toString() const {
     std::ostringstream os;
     os << "Pad"
@@ -56,6 +57,67 @@ vector<int> PadObj::getOpAttrVector() const {
     vector<int> ret = pads;
     ret.emplace(ret.begin(), type.underlying());
     return ret;
+}
+
+double PadObj::getComputeTime() const {
+    double inputSize = inputs[0]->size();
+    double outputSize = outputs[0]->size();
+    double paddedElements = outputSize - inputSize;
+    double copyOps = inputSize * 2.0;
+    double padOps = paddedElements;
+    double indexingOps = outputSize * 0.1;
+    double totalOps = copyOps + padOps + indexingOps;
+    return totalOps / 1e9;
+}
+
+double PadObj::getMemoryCost() const {
+    double inputCost = inputs[0]->size();
+    double outputCost = outputs[0]->size();
+    double memoryEfficiencyFactor = 1.0;
+    const auto &inputDims = inputs[0]->getDims();
+    int rank = inputDims.size();
+    bool hasPadOnInnerDims = false;
+
+    for (int i = rank / 2; i < rank; ++i) {
+        if (pads[i] > 0 || pads[i + rank] > 0) {
+            hasPadOnInnerDims = true;
+            break;
+        }
+    }
+
+    if (hasPadOnInnerDims) {
+        memoryEfficiencyFactor = 1.2;
+    }
+
+    return (inputCost + outputCost) * memoryEfficiencyFactor;
+}
+
+double PadObj::getParallelism() const {
+    double outputSize = outputs[0]->size();
+    const auto &inputDims = inputs[0]->getDims();
+    int rank = inputDims.size();
+    double outerPadRatio = 0.0;
+    double totalPad = 0.0;
+
+    for (int i = 0; i < rank; ++i) {
+        double dimPad = pads[i] + pads[i + rank];
+        totalPad += dimPad;
+
+        if (i < rank / 2) {
+            outerPadRatio += dimPad;
+        }
+    }
+
+    if (totalPad > 0) {
+        outerPadRatio /= totalPad;
+    } else {
+        outerPadRatio = 0.5;
+    }
+
+    double parallelEfficiency = 0.8 + outerPadRatio * 0.2;
+    const double MAX_PARALLEL_UNITS = 1024.0;
+
+    return std::min(outputSize * parallelEfficiency, MAX_PARALLEL_UNITS);
 }
 
 } // namespace infini

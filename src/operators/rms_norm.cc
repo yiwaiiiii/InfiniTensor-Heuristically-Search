@@ -33,4 +33,46 @@ vector<int> RMSNormObj::getWorkloadVector() const {
 
 vector<int> RMSNormObj::getOpAttrVector() const { return {type.underlying()}; }
 
+double RMSNormObj::getComputeTime() const {
+    const auto &inputDims = inputs[0]->getDims();
+    int64_t inputSize = inputs[0]->size();
+    int64_t lastDimSize = inputDims.back();
+    int64_t batchSize = inputSize / lastDimSize;
+    
+    double squareOps = inputSize;
+    double sumOps = batchSize * lastDimSize;
+    double rmsOps = batchSize * 2;
+    double normalizeOps = inputSize;
+    double scaleOps = inputSize;
+    
+    double totalOps = squareOps + sumOps + rmsOps + normalizeOps + scaleOps;
+    return totalOps / 1.5e9;
+}
+
+double RMSNormObj::getMemoryCost() const {
+    double inputCost = inputs[0]->size();
+    double weightCost = inputs[1]->size();
+    double outputCost = outputs[0]->size();
+    
+    const auto &inputDims = inputs[0]->getDims();
+    int64_t lastDimSize = inputDims.back();
+    int64_t batchSize = inputs[0]->size() / lastDimSize;
+    double tempStorageCost = inputs[0]->size() + batchSize;
+    
+    return inputCost + weightCost + outputCost + tempStorageCost;
+}
+
+double RMSNormObj::getParallelism() const {
+    const auto &inputDims = inputs[0]->getDims();
+    int64_t lastDimSize = inputDims.back();
+    int64_t batchSize = inputs[0]->size() / lastDimSize;
+    
+    double batchParallelism = batchSize;
+    double normParallelism = std::min(16.0, std::log2(lastDimSize) * 4.0);
+    double totalParallelism = batchParallelism * normParallelism;
+    const double MAX_PARALLEL_UNITS = 1024.0;
+    
+    return std::min(totalParallelism, MAX_PARALLEL_UNITS);
+}
+
 }; // namespace infini

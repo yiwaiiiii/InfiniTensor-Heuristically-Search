@@ -44,4 +44,41 @@ vector<int> G2BMMObj::getOpAttrVector() const {
     return {type.underlying(), width, dilation, enum_to_underlying(act)};
 }
 
+double G2BMMObj::getComputeTime() const {
+    int64_t batchSize = getB();
+    int64_t seqLength = getM();
+    int64_t featureDim = getK();
+    int64_t windowWidth = getWidth();
+    int64_t dilationFactor = getDilation();
+    int64_t outputWidth = 2 * windowWidth + 1;
+    
+    double multiplyAddOps = batchSize * seqLength * outputWidth * featureDim;
+    double dilationPenalty = std::log2(dilationFactor + 1) * 0.1 + 1.0;
+    
+    double actCost = 0.0;
+    if (act != ActType::None) {
+        actCost = batchSize * seqLength * outputWidth * 0.1;
+    }
+    
+    double totalOps = multiplyAddOps * dilationPenalty + actCost;
+    return totalOps / 2e9;
+}
+
+double G2BMMObj::getMemoryCost() const {
+    double costA = inputs[0]->size();
+    double costB = inputs[1]->size();
+    double costC = outputs[0]->size();
+    double memoryEfficiencyFactor = 1.0 + dilation * 0.05;
+    return (costA + costB) * memoryEfficiencyFactor + costC;
+}
+
+double G2BMMObj::getParallelism() const {
+    int64_t batchParallel = getB();
+    int64_t seqParallel = getM();
+    int64_t windowParallel = std::min(2 * width + 1, 8);
+    double totalParallelism = batchParallel * seqParallel * windowParallel;
+    const double MAX_PARALLEL_UNITS = 2048.0;
+    return std::min(totalParallelism, MAX_PARALLEL_UNITS);
+}
+
 } // namespace infini

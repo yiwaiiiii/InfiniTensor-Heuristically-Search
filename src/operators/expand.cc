@@ -38,4 +38,25 @@ vector<int> ExpandObj::getOpAttrVector() const {
     return ret;
 }
 
+double ExpandObj::getComputeTime() const {
+    double inputSize = inputs[0]->size();
+    double outputSize = outputs[0]->size();
+    double expandRatio = outputSize / (inputSize > 0 ? inputSize : 1);
+    double addressMappingCost = std::log2(expandRatio > 1 ? expandRatio : 1) * 0.2;
+    return outputSize * (1.0 + addressMappingCost) / 1e9;
+}
+
+double ExpandObj::getMemoryCost() const {
+    double inputSize = inputs[0]->size();
+    double outputSize = outputs[0]->size();
+    return inputSize + outputSize;
+}
+
+double ExpandObj::getParallelism() const {
+    double outputSize = outputs[0]->size();
+    const double MAX_PARALLEL_UNITS = 1024.0;
+    double utilizationFactor = 0.95;
+    return std::min(outputSize * utilizationFactor, MAX_PARALLEL_UNITS);
+}
+
 } // namespace infini

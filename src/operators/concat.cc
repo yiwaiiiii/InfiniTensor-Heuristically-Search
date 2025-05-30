@@ -62,4 +62,38 @@ vector<int> ConcatObj::getOpAttrVector() const {
     return {type.underlying(), dim};
 }
 
+double ConcatObj::getComputeTime() const {
+    double totalElements = 0;
+    for (const auto &input : inputs) {
+        totalElements += input->size();
+    }
+    
+    return totalElements / 1e9;
+}
+
+double ConcatObj::getMemoryCost() const {
+    double inputCost = 0;
+    for (const auto &input : inputs) {
+        inputCost += input->size();
+    }
+    
+    double outputCost = outputs[0]->size();
+    
+    return inputCost + outputCost;
+}
+
+double ConcatObj::getParallelism() const {
+    const auto &outDims = outputs[0]->getDims();
+    
+    int64_t parallelWorkload = 1;
+    for (size_t i = 0; i < outDims.size(); ++i) {
+        if (i != (size_t)dim) {
+            parallelWorkload *= outDims[i];
+        }
+    }
+    
+    const double MAX_PARALLEL_UNITS = 1024.0;
+    return std::min(static_cast<double>(parallelWorkload), MAX_PARALLEL_UNITS);
+}
+
 } // namespace infini

@@ -19,6 +19,10 @@ class LRNObj : public OperatorObj {
     }
     auto getSize() const { return size_value; }
 
+    double getComputeTime() const override;
+    double getMemoryCost() const override;
+    double getParallelism() const override;
+
   private:
     float alpha_value, beta_value, bias_value;
     int size_value;

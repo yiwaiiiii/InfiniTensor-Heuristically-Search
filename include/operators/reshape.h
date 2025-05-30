@@ -33,6 +33,10 @@ class ReshapeObj : public OperatorObj {
     inline Shape getShape() const { return outputShape; }
     inline Shape getDims() const { return dims; }
 
+    double getComputeTime() const override;
+    double getMemoryCost() const override;
+    double getParallelism() const override;
+
   private:
     vector<int> getWorkloadVector() const override;
     vector<int> getOpAttrVector() const override;
@@ -65,6 +69,10 @@ class FlattenObj : public OperatorObj {
     int numOutputs() const override { return 1; }
     int getAxis() const { return axis; }
 
+    double getComputeTime() const override;
+    double getMemoryCost() const override;
+    double getParallelism() const override;
+
   private:
     vector<int> getWorkloadVector() const override;
     vector<int> getOpAttrVector() const override;
@@ -93,6 +101,10 @@ class IdentityObj : public OperatorObj {
     std::string toString() const override;
     int numInputs() const override { return 1; }
     int numOutputs() const override { return 1; }
+
+    double getComputeTime() const override;
+    double getMemoryCost() const override;
+    double getParallelism() const override;
 
   private:
     vector<int> getWorkloadVector() const override;

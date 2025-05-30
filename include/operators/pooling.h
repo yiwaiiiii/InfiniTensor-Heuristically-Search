@@ -59,6 +59,10 @@ class PoolingObj : public OperatorObj {
     auto getPadStrideDilation() const { return tuple(ph, pw, sh, sw, dh, dw); }
     auto getNCHWRS() const { return tuple(n, c, h, w, kh, kw); }
 
+    double getComputeTime() const override;
+    double getMemoryCost() const override;
+    double getParallelism() const override;
+
   private:
     vector<int> getWorkloadVector() const override;
     vector<int> getOpAttrVector() const override;

@@ -24,7 +24,11 @@ class AllGatherObj : public OperatorObj {
     AllGatherObj(GraphObj *graph, Tensor input, std::optional<TensorVec>,
                  int world_size);
     OP_CLONE(AllGatherObj);
-
+    
+    double getComputeTime() const override;
+    double getMemoryCost() const override; 
+    double getParallelism() const override;
+      
     int numInputs() const override { return 1; }
     int numOutputs() const override { return world_size; }
     optional<vector<Shape>> inferShape(const TensorVec &inputs) override;

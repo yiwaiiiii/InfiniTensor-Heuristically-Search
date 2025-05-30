@@ -38,4 +38,49 @@ vector<int> DetObj::getWorkloadVector() const {
 
 vector<int> DetObj::getOpAttrVector() const { return {type.underlying()}; }
 
-}; // namespace infini
+double DetObj::getComputeTime() const {
+    const auto &inputDims = inputs[0]->getDims();
+    const int rank = inputDims.size();
+    int64_t n = inputDims[rank - 1];
+    IT_ASSERT(inputDims[rank - 1] == inputDims[rank - 2], "Matrix must be square");
+    int64_t batchSize = 1;
+    for (int i = 0; i < rank - 2; ++i) {
+        batchSize *= inputDims[i];
+    }
+    double complexity;
+    switch (modeValue) {
+        case Mode::LogDet:
+            complexity = 2.0;
+            break;
+        default:
+            complexity = 1.0;
+    }
+    double operationsPerMatrix = std::pow(n, 3.0) * complexity;
+    double totalOperations = operationsPerMatrix * batchSize;
+    return totalOperations / 1e9;
+}
+
+double DetObj::getMemoryCost() const {
+    double inputCost = inputs[0]->size();
+    double outputCost = outputs[0]->size();
+    const auto &inputDims = inputs[0]->getDims();
+    const int rank = inputDims.size();
+    int64_t n = inputDims[rank - 1];
+    double tempStorageCost = inputs[0]->size();
+    return inputCost + outputCost + tempStorageCost;
+}
+
+double DetObj::getParallelism() const {
+    const auto &inputDims = inputs[0]->getDims();
+    const int rank = inputDims.size();
+    if (rank <= 2) {
+        return 1.0;
+    }
+    int64_t batchSize = 1;
+    for (int i = 0; i < rank - 2; ++i) {
+        batchSize *= inputDims[i];
+    }
+    return static_cast<double>(batchSize);
+}
+
+} // namespace infini

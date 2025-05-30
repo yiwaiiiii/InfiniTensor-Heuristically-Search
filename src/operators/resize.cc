@@ -1,5 +1,6 @@
 #include "operators/resize.h"
 #include <cmath>
+
 namespace infini {
 ResizeObj::ResizeObj(GraphObj *graph, Tensor input, Tensor output,
                      const std::optional<vector<int>> &axes, Tensor sizes,
@@ -30,8 +31,6 @@ void ResizeObj::init(const Tensor &input, const Tensor &sizes,
                      const std::optional<vector<int>> &axes) {
     IT_ASSERT(!(nullptr != sizes && nullptr != scales));
 
-    // inputs of operator must not be nullptr, due to the check in
-    // OperatorObj::OperatorObj
     if (nullptr != sizes) {
         setGivenSizes(true);
         inputs.push_back(sizes);
@@ -42,14 +41,12 @@ void ResizeObj::init(const Tensor &input, const Tensor &sizes,
         InitByScales(input, scales, axes);
     }
 
-    // roi
     if (ECoordinateTransMode::tfCropAndResize == coMode) {
         IT_ASSERT(nullptr != roi);
         inputs.push_back(roi);
         IT_ASSERT(roi->getRank() == 1);
         IT_ASSERT((size_t)roi->getDims()[0] == this->axes.size() * 2);
 
-        // init roi_start = 0;roi_end =1
         size_t nDims = input->getRank();
         for (size_t i = 0; i < nDims; ++i) {
             this->roi.emplace_back(0);
@@ -84,7 +81,6 @@ void ResizeObj::InitBySizes(Tensor input, Tensor sizes,
             this->axes.emplace_back(i);
         }
     } else {
-        // check axes
         for (size_t i = 0; i < (*axes).size(); ++i) {
             auto val = (*axes)[i];
             if (val < 0) {
@@ -94,12 +90,11 @@ void ResizeObj::InitBySizes(Tensor input, Tensor sizes,
             this->axes.emplace_back(val);
         }
     }
-    // init this->scales
+
     for (size_t i = 0; i < input->getRank(); ++i) {
         this->scales.emplace_back(1);
     }
 
-    // copy sizes data to host.
     IT_ASSERT(sizes->getDataBlob() != nullptr);
     Runtime runtime = NativeCpuRuntimeObj::getInstance();
     std::shared_ptr<int64_t> dataObj(
@@ -152,7 +147,6 @@ void ResizeObj::InitByScales(Tensor input, Tensor scales,
     IT_ASSERT(size == input->getRank() ||
               (axes != std::nullopt && size == (*axes).size()));
 
-    // copy scales data to host.
     IT_ASSERT(scales->getDataBlob() != nullptr);
     Runtime runtime = NativeCpuRuntimeObj::getInstance();
     std::shared_ptr<float> dataObj((float *)runtime->alloc(scales->getBytes()),
@@ -161,7 +155,6 @@ void ResizeObj::InitByScales(Tensor input, Tensor scales,
     scales->getRuntime()->copyBlobToCPU(
         (void *)data, scales->getRawDataPtr<void *>(), scales->getBytes());
 
-    // init this->scales
     for (size_t i = 0; i < input->getRank(); ++i) {
         this->scales.emplace_back(1);
     }
@@ -173,7 +166,6 @@ void ResizeObj::InitByScales(Tensor input, Tensor scales,
             this->scales[i] = data[i];
         }
     } else {
-        // check axes
         for (size_t i = 0; i < (*axes).size(); ++i) {
             auto val = (*axes)[i];
             if (val < 0) {
@@ -207,7 +199,6 @@ float ResizeObj::round_int(float x) const {
     return (x > 0.0) ? floor(x + 0.5) : ceil(x - 0.5);
 }
 
-// output shape is related to sizes/scales value.
 optional<vector<Shape>> ResizeObj::inferShape(const TensorVec &inputs) {
     auto inDims = inputs[0]->getDims();
     Shape ret = inDims;
@@ -253,8 +244,6 @@ vector<int> ResizeObj::getWorkloadVector() const {
     for (size_t i = 0; i < outputs[0]->getRank(); ++i) {
         ret.emplace_back(outputs[0]->getDims()[i]);
     }
-    // ratioPolicy only effects output shape, so did not need
-    // here.
     ret.emplace_back(enum_to_underlying(coMode));
     ret.emplace_back(enum_to_underlying(nearestMode));
     ret.emplace(ret.begin(), type.underlying());
@@ -268,6 +257,70 @@ vector<int> ResizeObj::getOpAttrVector() const {
     ret.emplace_back(enum_to_underlying(ratioPolicy));
     ret.emplace(ret.begin(), type.underlying());
     return ret;
+}
+
+double ResizeObj::getComputeTime() const {
+    const auto &inputDims = inputs[0]->getDims();
+    const auto &outputDims = outputs[0]->getDims();
+    int64_t inputSize = inputs[0]->size();
+    int64_t outputSize = outputs[0]->size();
+    double operationFactor;
+    if (mode == ECoeffMode::nearest) {
+        operationFactor = 1.0;
+    } else if (mode == ECoeffMode::linear) {
+        operationFactor = 2.5;
+    } else if (mode == ECoeffMode::cubic) {
+        operationFactor = 6.0;
+    } else {
+        operationFactor = 2.0;
+    }
+    double transformFactor = 1.0;
+    if (coMode == ECoordinateTransMode::alignCorners) {
+        transformFactor = 1.1;
+    } else if (coMode == ECoordinateTransMode::tfCropAndResize) {
+        transformFactor = 1.3;
+    }
+    int rank = inputDims.size();
+    int resizeDims = axes.size();
+    double dimFactor = 1.0 + 0.1 * resizeDims;
+    double totalOps = outputSize * operationFactor * transformFactor * dimFactor;
+    double processingRate = 1e9;
+    return totalOps / processingRate;
+}
+
+double ResizeObj::getMemoryCost() const {
+    double inputCost = inputs[0]->size();
+    double paramCost = inputs[1]->size();
+    double roiCost = 0.0;
+    if (inputs.size() > 2 && coMode == ECoordinateTransMode::tfCropAndResize) {
+        roiCost = inputs[2]->size();
+    }
+    double outputCost = outputs[0]->size();
+    double accessFactor = 1.0;
+    if (mode != ECoeffMode::nearest) {
+        int interpolationPoints = 0;
+        if (mode == ECoeffMode::linear) {
+            interpolationPoints = 1 << axes.size();
+        } else if (mode == ECoeffMode::cubic) {
+            interpolationPoints = std::pow(4, axes.size());
+        }
+        inputCost *= interpolationPoints / 2.0;
+    }
+    return (inputCost + paramCost + roiCost) * accessFactor + outputCost;
+}
+
+double ResizeObj::getParallelism() const {
+    double parallelism = outputs[0]->size();
+    double effectiveFactor = 0.8;
+    if (mode != ECoeffMode::nearest) {
+        effectiveFactor *= 0.9;
+    }
+    if (coMode == ECoordinateTransMode::tfCropAndResize) {
+        effectiveFactor *= 0.95;
+    }
+    const double MAX_PARALLEL_UNITS = 2048.0;
+    double effectiveParallelism = parallelism * effectiveFactor;
+    return std::min(effectiveParallelism, MAX_PARALLEL_UNITS);
 }
 
 } // namespace infini

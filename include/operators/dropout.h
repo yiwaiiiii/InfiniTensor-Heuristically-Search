@@ -45,6 +45,10 @@ class DropoutObj : public OperatorObj {
     float getRatio() const { return ratio; }
     bool getTrainingMode() const { return false; }
 
+    double getComputeTime() const override;
+    double getMemoryCost() const override;
+    double getParallelism() const override;
+    
   private:
     vector<int> getWorkloadVector() const override;
     vector<int> getOpAttrVector() const override;

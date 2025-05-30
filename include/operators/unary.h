@@ -23,6 +23,10 @@ class UnaryObj : public OperatorObj {
     int numInputs() const override { return 1; }
     int numOutputs() const override { return 1; }
 
+    double getComputeTime() const override;
+    double getMemoryCost() const override;
+    double getParallelism() const override;
+
   private:
     vector<int> getWorkloadVector() const override;
     vector<int> getOpAttrVector() const override;
@@ -40,6 +44,10 @@ class ClipObj : public OperatorObj {
     std::optional<float> getMax() const { return maxValue; };
     int numInputs() const override { return 1; }
     int numOutputs() const override { return 1; }
+
+    double getComputeTime() const override;
+    double getMemoryCost() const override;
+    double getParallelism() const override;
 
   private:
     std::optional<float> minValue, maxValue;
@@ -59,6 +67,10 @@ class EluObj : public OperatorObj {
     float getAlpha() const { return alpha; }
     float alpha;
 
+    double getComputeTime() const override;
+    double getMemoryCost() const override;
+    double getParallelism() const override;
+
   private:
     vector<int> getWorkloadVector() const override;
     vector<int> getOpAttrVector() const override;
@@ -77,6 +89,10 @@ class HardtanhObj : public OperatorObj {
     int numInputs() const override { return 1; }
     int numOutputs() const override { return 1; }
 
+    double getComputeTime() const override;
+    double getMemoryCost() const override;
+    double getParallelism() const override;
+
   private:
     float minValue, maxValue;
     vector<int> getWorkloadVector() const override;
@@ -93,6 +109,10 @@ class FlipObj : public OperatorObj {
     vector<int> getAxis() const { return axisValue; };
     int numInputs() const override { return 1; }
     int numOutputs() const override { return 1; }
+
+    double getComputeTime() const override;
+    double getMemoryCost() const override;
+    double getParallelism() const override;
 
   private:
     vector<int> axisValue;
@@ -111,6 +131,10 @@ class FillObj : public OperatorObj {
     int numInputs() const override { return 1; }
     int numOutputs() const override { return 1; }
 
+    double getComputeTime() const override;
+    double getMemoryCost() const override;
+    double getParallelism() const override;
+
   private:
     float setValue;
     vector<int> getWorkloadVector() const override;
@@ -126,6 +150,10 @@ class L2LossObj : public OperatorObj {
     std::string toString() const override;
     int numInputs() const override { return 1; }
     int numOutputs() const override { return 1; }
+
+    double getComputeTime() const override;
+    double getMemoryCost() const override;
+    double getParallelism() const override;
 
   private:
     vector<int> getWorkloadVector() const override;
@@ -144,6 +172,10 @@ class TransformObj : public OperatorObj {
     float getBeta() const { return betaValue; }
     int numInputs() const override { return 1; }
     int numOutputs() const override { return 1; }
+
+    double getComputeTime() const override;
+    double getMemoryCost() const override;
+    double getParallelism() const override;
 
   private:
     float alphaValue, betaValue;
@@ -192,6 +224,10 @@ class CastObj : public OperatorObj {
     int numInputs() const override { return 1; }
     int numOutputs() const override { return 1; }
 
+    double getComputeTime() const override;
+    double getMemoryCost() const override;
+    double getParallelism() const override;
+
   private:
     CastType castType;
     vector<int> getWorkloadVector() const override;
@@ -211,6 +247,10 @@ class CumsumObj : public OperatorObj {
     float getReverse() const { return reverseValue; }
     int numInputs() const override { return 1; }
     int numOutputs() const override { return 1; }
+    
+    double getComputeTime() const override;
+    double getMemoryCost() const override;
+    double getParallelism() const override;
 
   private:
     int axisValue;
@@ -228,6 +268,10 @@ class ShapeObj : public OperatorObj {
     std::string toString() const override;
     int numInputs() const override { return 1; }
     int numOutputs() const override { return 1; }
+
+    double getComputeTime() const override;
+    double getMemoryCost() const override;
+    double getParallelism() const override;
 };
 
 class PReluObj : public OperatorObj {
@@ -239,6 +283,10 @@ class PReluObj : public OperatorObj {
     std::string toString() const override;
     int numInputs() const override { return 2; }
     int numOutputs() const override { return 1; }
+
+    double getComputeTime() const override;
+    double getMemoryCost() const override;
+    double getParallelism() const override;
 
   private:
     vector<int> getWorkloadVector() const override;
@@ -255,6 +303,10 @@ class LeakyReluObj : public OperatorObj {
     float getAlpha() const { return alphaValue; }
     int numInputs() const override { return 1; }
     int numOutputs() const override { return 1; }
+
+    double getComputeTime() const override;
+    double getMemoryCost() const override;
+    double getParallelism() const override;
 
   private:
     float alphaValue;
@@ -277,6 +329,10 @@ class LogObj : public OperatorObj {
     LogType getType() const { return logType; }
     int numInputs() const override { return 1; }
     int numOutputs() const override { return 1; }
+
+    double getComputeTime() const override;
+    double getMemoryCost() const override;
+    double getParallelism() const override;
 
   private:
     LogType logType;

@@ -28,7 +28,11 @@ class AttentionKVCacheObj : public OperatorObj {
                         Tensor input_v, Tensor position_id,
                         Tensor output_matmul);
     OP_CLONE(AttentionKVCacheObj);
-
+    
+    double getComputeTime() const override;
+    double getMemoryCost() const override; 
+    double getParallelism() const override;
+    
     optional<vector<Shape>> inferShape(const TensorVec &inputs) override;
 
     std::string toString() const override;

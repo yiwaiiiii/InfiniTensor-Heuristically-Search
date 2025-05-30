@@ -7,6 +7,13 @@
 
 namespace infini {
 
+// 性能指标结构体
+struct PerfMetrics {
+  double computeTime;   // 计算时间
+  double memoryCost;    // 内存访问成本
+  double parallelism;   // 并行度
+};
+
 /***************** Forward declaration begin *****************/
 class TensorBaseObj;
 class TensorObj;
@@ -46,7 +53,25 @@ class RuntimeObj : public std::enable_shared_from_this<RuntimeObj> {
     RuntimeObj(RuntimeObj &other) = delete;
     RuntimeObj &operator=(RuntimeObj const &) = delete;
     virtual ~RuntimeObj() {}
-
+    public:
+    /**
+     * @brief 获取计算图的综合性能指标
+     * 
+     * @param graph 计算图
+     * @param profiling 是否打印详细信息
+     * @return PerfMetrics 返回性能指标结构体
+     */
+    PerfMetrics getPerfMetrics(const Graph &graph, bool profiling = false) const;
+    
+    /**
+     * @brief 判断是否应该进行算子融合
+     * 
+     * @param originalGraph 原始计算图
+     * @param fusedGraph 融合后的计算图
+     * @return bool 如果融合后的性能更好则返回 true
+     */
+    bool shouldFuse(const Graph &originalGraph, const Graph &fusedGraph) const;
+    
     /**
      * @brief Execute a graph.
      *

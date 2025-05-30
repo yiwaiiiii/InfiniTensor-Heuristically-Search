@@ -50,6 +50,10 @@ class G2BMMObj : public OperatorObj {
     int getK() const { return k; }
     auto getBMKWD() const { return tuple{b, m, k, width, dilation}; }
 
+    double getComputeTime() const override;
+    double getMemoryCost() const override;
+    double getParallelism() const override;
+
   private:
     vector<int> getWorkloadVector() const override;
     vector<int> getOpAttrVector() const override;

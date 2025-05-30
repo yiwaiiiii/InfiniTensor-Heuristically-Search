@@ -14,6 +14,10 @@ class DetObj : public OperatorObj {
     int numOutputs() const override { return 1; }
     Mode getMode() const { return modeValue; }
 
+    double getComputeTime() const override;
+    double getMemoryCost() const override;
+    double getParallelism() const override;    
+    
   private:
     Mode modeValue;
     vector<int> getWorkloadVector() const override;

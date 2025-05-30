@@ -31,6 +31,10 @@ class ExtendObj : public OperatorObj {
     int getDim() const { return dim; }
     int getNum() const { return num; }
 
+    double getComputeTime() const override;
+    double getMemoryCost() const override;
+    double getParallelism() const override;
+
   private:
     vector<int> getWorkloadVector() const override;
     vector<int> getOpAttrVector() const override;

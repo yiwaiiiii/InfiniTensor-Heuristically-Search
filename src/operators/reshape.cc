@@ -64,6 +64,77 @@ vector<int> ReshapeObj::getOpAttrVector() const {
     return ret;
 }
 
+double ReshapeObj::getComputeTime() const {
+    bool needsRearrangement = false;
+    const auto &inputDims = inputs[0]->getDims();
+    int inputRank = inputDims.size();
+    int outputRank = outputShape.size();
+    if (inputRank != outputRank) {
+        needsRearrangement = true;
+    } else {
+        for (int i = 0; i < inputRank - 1; ++i) {
+            if (inputDims[i] != outputShape[i]) {
+                needsRearrangement = true;
+                break;
+            }
+        }
+    }
+    if (needsRearrangement) {
+        double dataSize = inputs[0]->size();
+        return dataSize / 8e9;
+    } else {
+        return 1e-6;
+    }
+}
+
+double ReshapeObj::getMemoryCost() const {
+    bool needsRearrangement = false;
+    const auto &inputDims = inputs[0]->getDims();
+    int inputRank = inputDims.size();
+    int outputRank = outputShape.size();
+    if (inputRank != outputRank) {
+        needsRearrangement = true;
+    } else {
+        for (int i = 0; i < inputRank - 1; ++i) {
+            if (inputDims[i] != outputShape[i]) {
+                needsRearrangement = true;
+                break;
+            }
+        }
+    }
+    if (needsRearrangement) {
+        double inputSize = inputs[0]->size();
+        double outputSize = outputs[0]->size();
+        return inputSize + outputSize;
+    } else {
+        return 0.0;
+    }
+}
+
+double ReshapeObj::getParallelism() const {
+    bool needsRearrangement = false;
+    const auto &inputDims = inputs[0]->getDims();
+    int inputRank = inputDims.size();
+    int outputRank = outputShape.size();
+    if (inputRank != outputRank) {
+        needsRearrangement = true;
+    } else {
+        for (int i = 0; i < inputRank - 1; ++i) {
+            if (inputDims[i] != outputShape[i]) {
+                needsRearrangement = true;
+                break;
+            }
+        }
+    }
+    if (needsRearrangement) {
+        double dataSize = inputs[0]->size();
+        const double MAX_PARALLEL_UNITS = 512.0;
+        return std::min(dataSize / 128, MAX_PARALLEL_UNITS);
+    } else {
+        return 1.0;
+    }
+}
+
 FlattenObj::FlattenObj(GraphObj *graph, Tensor input, Tensor output, int _axis)
     : OperatorObj(OpType::Flatten, {input}, {output}) {
     int rank = input->getRank();
@@ -103,6 +174,47 @@ vector<int> FlattenObj::getOpAttrVector() const {
     return {type.underlying(), axis};
 }
 
+double FlattenObj::getComputeTime() const {
+    bool needsRearrangement = false;
+    if (axis > 1) {
+        needsRearrangement = true;
+    }
+    if (needsRearrangement) {
+        double dataSize = inputs[0]->size();
+        return dataSize / 8e9;
+    } else {
+        return 1e-6;
+    }
+}
+
+double FlattenObj::getMemoryCost() const {
+    bool needsRearrangement = false;
+    if (axis > 1) {
+        needsRearrangement = true;
+    }
+    if (needsRearrangement) {
+        double inputSize = inputs[0]->size();
+        double outputSize = outputs[0]->size();
+        return inputSize + outputSize;
+    } else {
+        return 0.0;
+    }
+}
+
+double FlattenObj::getParallelism() const {
+    bool needsRearrangement = false;
+    if (axis > 1) {
+        needsRearrangement = true;
+    }
+    if (needsRearrangement) {
+        double dataSize = inputs[0]->size();
+        const double MAX_PARALLEL_UNITS = 512.0;
+        return std::min(dataSize / 128, MAX_PARALLEL_UNITS);
+    } else {
+        return 1.0;
+    }
+}
+
 IdentityObj::IdentityObj(GraphObj *graph, Tensor input, Tensor output)
     : OperatorObj(OpType::Identity, {input}, {output}) {
     IT_ASSERT(checkValid(graph));
@@ -128,4 +240,21 @@ vector<int> IdentityObj::getWorkloadVector() const {
     return ret;
 }
 vector<int> IdentityObj::getOpAttrVector() const { return {type.underlying()}; }
+
+double IdentityObj::getComputeTime() const {
+    double dataSize = inputs[0]->size();
+    return dataSize / 10e9;
+}
+
+double IdentityObj::getMemoryCost() const {
+    double inputSize = inputs[0]->size();
+    double outputSize = outputs[0]->size();
+    return inputSize + outputSize;
+}
+
+double IdentityObj::getParallelism() const {
+    double dataSize = inputs[0]->size();
+    const double MAX_PARALLEL_UNITS = 1024.0;
+    return std::min(dataSize / 64, MAX_PARALLEL_UNITS);
+}
 } // namespace infini

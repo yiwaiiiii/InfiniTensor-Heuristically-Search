@@ -56,4 +56,87 @@ vector<int> PoolingObj::getOpAttrVector() const {
     return {type.underlying(), kh, kw, ph, pw, sh, sw, dh, dw, ceilMode};
 }
 
+double PoolingObj::getComputeTime() const {
+    int oh, ow;
+    if (ceilMode) {
+        oh = ceil(((float)(h + 2 * ph - dh * (kh - 1) - 1)) / sh + 1);
+        ow = ceil(((float)(w + 2 * pw - dw * (kw - 1) - 1)) / sw + 1);
+    } else {
+        oh = floor(((float)(h + 2 * ph - dh * (kh - 1) - 1)) / sh + 1);
+        ow = floor(((float)(w + 2 * pw - dw * (kw - 1) - 1)) / sw + 1);
+    }
+
+    int64_t outputElements = n * c * oh * ow;
+    int64_t kernelSize = kh * kw;
+
+    double opsPerElement;
+    if (type == OpType::MaxPool) {
+        opsPerElement = kernelSize - 1;
+    } else if (type == OpType::AveragePool) {
+        opsPerElement = kernelSize + 1;
+    } else {
+        opsPerElement = kernelSize;
+    }
+
+    double dilationFactor = 1.0;
+    if (dh > 1 || dw > 1) {
+        dilationFactor = 1.0 + std::log2(std::max(dh, dw)) * 0.1;
+    }
+
+    double totalOps = outputElements * opsPerElement * dilationFactor;
+    return totalOps / 2e9;
+}
+
+double PoolingObj::getMemoryCost() const {
+    int oh, ow;
+    if (ceilMode) {
+        oh = ceil(((float)(h + 2 * ph - dh * (kh - 1) - 1)) / sh + 1);
+        ow = ceil(((float)(w + 2 * pw - dw * (kw - 1) - 1)) / sw + 1);
+    } else {
+        oh = floor(((float)(h + 2 * ph - dh * (kh - 1) - 1)) / sh + 1);
+        ow = floor(((float)(w + 2 * pw - dw * (kw - 1) - 1)) / sw + 1);
+    }
+
+    int64_t outputSize = n * c * oh * ow;
+
+    double inputAccessRatio = 1.5;
+    double inputSize = inputs[0]->size() * inputAccessRatio;
+
+    double strideEffect = 1.0;
+    if (sh > 1 || sw > 1) {
+        strideEffect = 1.0 + std::log2(std::max(sh, sw)) * 0.05;
+    }
+
+    double dilationEffect = 1.0;
+    if (dh > 1 || dw > 1) {
+        dilationEffect = 1.0 + std::log2(std::max(dh, dw)) * 0.1;
+    }
+
+    return (inputSize * strideEffect * dilationEffect + outputSize);
+}
+
+double PoolingObj::getParallelism() const {
+    int oh, ow;
+    if (ceilMode) {
+        oh = ceil(((float)(h + 2 * ph - dh * (kh - 1) - 1)) / sh + 1);
+        ow = ceil(((float)(w + 2 * pw - dw * (kw - 1) - 1)) / sw + 1);
+    } else {
+        oh = floor(((float)(h + 2 * ph - dh * (kh - 1) - 1)) / sh + 1);
+        ow = floor(((float)(w + 2 * pw - dw * (kw - 1) - 1)) / sw + 1);
+    }
+
+    double batchParallel = n;
+    double channelParallel = c;
+    double spatialParallel = oh * ow;
+
+    double effectiveChannelParallel = std::min(channelParallel, 64.0);
+    double effectiveSpatialParallel = std::min(spatialParallel, 256.0);
+
+    double totalParallelism = batchParallel * effectiveChannelParallel * effectiveSpatialParallel;
+
+    const double MAX_PARALLEL_UNITS = 2048.0;
+
+    return std::min(totalParallelism, MAX_PARALLEL_UNITS);
+}
+
 }; // namespace infini

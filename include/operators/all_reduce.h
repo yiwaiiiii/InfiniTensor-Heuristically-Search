@@ -29,7 +29,11 @@ class AllReduceBaseObj : public OperatorObj {
     AllReduceBaseObj(GraphObj *graph, OpType opType, Tensor input,
                      Tensor output);
     OP_CLONE(AllReduceBaseObj);
-
+    
+    double getComputeTime() const override;
+    double getMemoryCost() const override; 
+    double getParallelism() const override;
+    
     int numInputs() const override { return 1; }
     int numOutputs() const override { return 1; }
 
@@ -50,26 +54,31 @@ class AllReduceBaseObj : public OperatorObj {
 class AllReduceSumObj : public AllReduceBaseObj {
   public:
     AllReduceSumObj(GraphObj *graph, Tensor input, Tensor output);
+    double getComputeTime() const override;
 };
 
 class AllReduceProdObj : public AllReduceBaseObj {
   public:
     AllReduceProdObj(GraphObj *graph, Tensor input, Tensor output);
+    double getComputeTime() const override;
 };
 
 class AllReduceMinObj : public AllReduceBaseObj {
   public:
     AllReduceMinObj(GraphObj *graph, Tensor input, Tensor output);
+    double getComputeTime() const override;
 };
 
 class AllReduceMaxObj : public AllReduceBaseObj {
   public:
     AllReduceMaxObj(GraphObj *graph, Tensor input, Tensor output);
+    double getComputeTime() const override;
 };
 
 class AllReduceAvgObj : public AllReduceBaseObj {
   public:
     AllReduceAvgObj(GraphObj *graph, Tensor input, Tensor output);
+    double getComputeTime() const override;
 };
 
 } // namespace infini

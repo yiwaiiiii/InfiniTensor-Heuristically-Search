@@ -30,4 +30,28 @@ std::string BroadcastObj::toString() const {
     os << ")";
     return os.str();
 }
+
+double BroadcastObj::getComputeTime() const {
+    double dataSize = inputs[0]->size();
+    
+    int world_size = 8;
+    
+    double commCost = dataSize * std::log2(world_size) * 1e-7;
+    
+    return commCost;
+}
+
+double BroadcastObj::getMemoryCost() const {
+    double inputCost = inputs[0]->size();
+    double outputCost = outputs[0]->size();
+    
+    return inputCost + outputCost;
+}
+
+double BroadcastObj::getParallelism() const {
+    int world_size = 8;
+    
+    return world_size - 1;
+}
+
 } // namespace infini

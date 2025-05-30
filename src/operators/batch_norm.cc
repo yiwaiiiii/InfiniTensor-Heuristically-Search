@@ -55,16 +55,56 @@ std::string BatchNormObj::toString() const {
     return os.str();
 }
 
-// need eps and momentum?
 vector<int> BatchNormObj::getWorkloadVector() const {
     vector<int> ret = inputs[0]->getDims();
     ret.emplace(ret.begin(), type.underlying());
     return ret;
 }
 
-// need eps and momentum?
 vector<int> BatchNormObj::getOpAttrVector() const {
     return {type.underlying()};
+}
+
+double BatchNormObj::getComputeTime() const {
+    const auto &inputDims = inputs[0]->getDims();
+    
+    int64_t batchSize = inputDims[0];
+    int64_t channels = inputDims[1];
+    
+    int64_t featureSize = 1;
+    for (size_t i = 2; i < inputDims.size(); ++i) {
+        featureSize *= inputDims[i];
+    }
+    
+    double opsPerElement = trainingMode ? 8.0 : 5.0;
+    double totalOps = batchSize * channels * featureSize * opsPerElement;
+    
+    return totalOps / 1e9;
+}
+
+double BatchNormObj::getMemoryCost() const {
+    double inputCost = inputs[0]->size();
+    
+    double paramsCost = inputs[1]->size() + inputs[2]->size() + 
+                       inputs[3]->size() + inputs[4]->size();
+    
+    double outputCost = outputs[0]->size();
+    
+    return inputCost + paramsCost + outputCost;
+}
+
+double BatchNormObj::getParallelism() const {
+    const auto &inputDims = inputs[0]->getDims();
+    int64_t channels = inputDims[1];
+    
+    double parallelism = channels;
+    
+    if (inputDims[0] > 1) {
+        parallelism *= std::min(inputDims[0], 8);
+    }
+    
+    const double MAX_PARALLEL_UNITS = 1024.0;
+    return std::min(parallelism, MAX_PARALLEL_UNITS);
 }
 
 } // namespace infini

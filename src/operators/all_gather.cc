@@ -45,4 +45,24 @@ vector<int> AllGatherObj::getWorkloadVector() const {
 vector<int> AllGatherObj::getOpAttrVector() const {
     return {type.underlying(), world_size};
 }
+
+double AllGatherObj::getComputeTime() const {
+    double dataSize = inputs[0]->size();
+    double bandwidth_factor = 1e-7; 
+    return dataSize * std::log2(world_size) * bandwidth_factor;
+}
+
+double AllGatherObj::getMemoryCost() const {
+    double inputCost = inputs[0]->size();
+    double outputCost = 0;
+    for (const auto &output : outputs) {
+        outputCost += output->size();
+    }
+    return inputCost + outputCost;
+}
+
+double AllGatherObj::getParallelism() const {
+    return world_size * 0.8; 
+}
+
 } // namespace infini

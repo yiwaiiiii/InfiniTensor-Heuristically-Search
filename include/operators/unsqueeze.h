@@ -30,6 +30,10 @@ class UnsqueezeObj : public OperatorObj {
 
     inline Shape getAxes() const { return axes; }
 
+    double getComputeTime() const override;
+    double getMemoryCost() const override;
+    double getParallelism() const override;
+
   private:
     vector<int> getWorkloadVector() const override;
     vector<int> getOpAttrVector() const override;

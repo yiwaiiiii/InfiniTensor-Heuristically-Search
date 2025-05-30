@@ -143,6 +143,10 @@ class ResizeObj : public OperatorObj {
     void setGivenSizes(bool val) { isGivenSizes = val; }
     bool isResizeBySizes() const { return isGivenSizes; }
 
+    double getComputeTime() const override;
+    double getMemoryCost() const override;
+    double getParallelism() const override;
+
   private:
     vector<int> getWorkloadVector() const override;
     vector<int> getOpAttrVector() const override;

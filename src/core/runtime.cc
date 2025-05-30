@@ -5,7 +5,45 @@
 #include "utils/data_generator.h"
 #include <chrono>
 #include <cstring>
+#include <iostream>
+
 namespace infini {
+PerfMetrics RuntimeObj::getPerfMetrics(const Graph &graph, bool profiling) const {
+    PerfMetrics metrics = {0.0, 0.0, 0.0};
+    
+    for (const auto &op : graph->getOperators()) {
+        metrics.computeTime += op->getComputeTime();
+        metrics.memoryCost += op->getMemoryCost();
+        metrics.parallelism += op->getParallelism();
+        
+        if (profiling) {
+            std::cout << op->toString() << std::endl;
+            std::cout << "  Compute Time: " << op->getComputeTime()
+                      << ", Memory Cost: " << op->getMemoryCost()
+                      << ", Parallelism: " << op->getParallelism() << std::endl;
+        }
+    }
+    
+    return metrics;
+}
+
+bool RuntimeObj::shouldFuse(const Graph &originalGraph, const Graph &fusedGraph) const {
+    PerfMetrics originalMetrics = getPerfMetrics(originalGraph, false);
+    PerfMetrics fusedMetrics = getPerfMetrics(fusedGraph, false);
+    
+    // 计算总体性能度量，可根据实际需求调整权重
+    double originalScore = originalMetrics.computeTime + 
+                          0.5 * originalMetrics.memoryCost - 
+                          0.2 * originalMetrics.parallelism;
+                          
+    double fusedScore = fusedMetrics.computeTime + 
+                       0.5 * fusedMetrics.memoryCost - 
+                       0.2 * fusedMetrics.parallelism;
+    
+    // 分数越小表示性能越好
+    return fusedScore < originalScore;
+}
+
 void CpuRuntimeObj::run(const Graph &graph, bool tune, bool profiling) const {
     if (!tune && profiling)
         IT_TODO_HALT();

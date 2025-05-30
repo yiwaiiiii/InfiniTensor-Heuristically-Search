@@ -36,6 +36,10 @@ class ReduceBaseObj : public OperatorObj {
     const set<int> &getAxes() const { return axes; }
     bool getKeepDims() const { return keepDims; }
 
+    double getComputeTime() const override;
+    double getMemoryCost() const override;
+    double getParallelism() const override;
+
   private:
     vector<int> getWorkloadVector() const override;
     vector<int> getOpAttrVector() const override;

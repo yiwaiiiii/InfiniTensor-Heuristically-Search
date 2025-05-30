@@ -6,16 +6,15 @@ SliceObj::SliceObj(GraphObj *graph, Tensor input, Tensor output,
                    const optional<vector<int>> &_axes,
                    const optional<vector<int>> &_steps)
     : OperatorObj(OpType::Slice, {input}, {output}) {
-    auto shape = input->getDims(); // shape of input
+    auto shape = input->getDims();
     map<size_t, size_t> axes;
     vector<int> steps;
     {
-        auto size = starts.size();      // size of starts
-        IT_ASSERT(size == ends.size()); // size of ends
+        auto size = starts.size();
+        IT_ASSERT(size == ends.size());
 
         if (_axes) {
             IT_ASSERT(size == _axes->size());
-            // onnx doc: "Behavior is undefined if an axis is repeated."
             IT_ASSERT(size == std::set(_axes->begin(), _axes->end()).size());
 
             for (size_t i = 0; i < size; ++i) {
@@ -30,9 +29,7 @@ SliceObj::SliceObj(GraphObj *graph, Tensor input, Tensor output,
 
         if (_steps) {
             IT_ASSERT(size == _steps->size());
-            // onnx doc: "‘steps’ cannot be 0."
-            IT_ASSERT(std::find(_steps->begin(), _steps->end(), 0) ==
-                      _steps->end());
+            IT_ASSERT(std::find(_steps->begin(), _steps->end(), 0) == _steps->end());
             steps = *_steps;
         } else {
             steps.reserve(size);
@@ -105,6 +102,62 @@ vector<int> SliceObj::getOpAttrVector() const {
         ans.push_back(range.step);
     }
     return ans;
+}
+
+double SliceObj::getComputeTime() const {
+    double outputSize = outputs[0]->size();
+    double discontinuityFactor = 1.0;
+    int nonUnitStepCount = 0;
+    int innerAxisNonUnitStep = 0;
+    
+    for (size_t i = 0; i < axes.size(); ++i) {
+        if (std::abs(axes[i].step) != 1) {
+            nonUnitStepCount++;
+            if (i >= axes.size() / 2) {
+                innerAxisNonUnitStep++;
+            }
+        }
+    }
+    
+    discontinuityFactor += nonUnitStepCount * 0.15;
+    discontinuityFactor += innerAxisNonUnitStep * 0.25;
+    double opsPerElement = 2.0;
+    double totalOps = outputSize * opsPerElement * discontinuityFactor;
+    return totalOps / 5e9;
+}
+
+double SliceObj::getMemoryCost() const {
+    double outputSize = outputs[0]->size();
+    double memoryCostFactor = 1.0;
+    
+    for (size_t i = 0; i < axes.size(); ++i) {
+        if (std::abs(axes[i].step) != 1) {
+            if (i >= axes.size() / 2) {
+                memoryCostFactor += 0.4;
+            } else {
+                memoryCostFactor += 0.2;
+            }
+        }
+    }
+    
+    double inputAccessCost = outputSize * memoryCostFactor;
+    double outputAccessCost = outputSize;
+    return inputAccessCost + outputAccessCost;
+}
+
+double SliceObj::getParallelism() const {
+    double parallelism = outputs[0]->size();
+    double parallelEfficiency = 1.0;
+    
+    for (const auto &range : axes) {
+        if (std::abs(range.step) > 1) {
+            parallelEfficiency *= (1.0 - 0.05 * std::min(std::abs(range.step) - 1, 5));
+        }
+    }
+    
+    const double MAX_PARALLEL_UNITS = 1024.0;
+    double effectiveParallelism = parallelism * parallelEfficiency;
+    return std::min(effectiveParallelism, MAX_PARALLEL_UNITS);
 }
 
 } // namespace infini

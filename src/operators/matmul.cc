@@ -27,7 +27,7 @@ optional<vector<Shape>> MatmulObj::inferShape(const TensorVec &inputs) {
     auto A = inputs[0], B = inputs[1];
     auto shapeA = A->getDims();
     auto shapeB = B->getDims();
-    int rankA = A->getRank(); // Rank is the Shape of TensorDims
+    int rankA = A->getRank();
     int rankB = B->getRank();
     Shape shapeA1(shapeA.begin(), shapeA.begin() + (rankA - 2));
     Shape shapeB1(shapeB.begin(), shapeB.begin() + (rankB - 2));
@@ -55,6 +55,64 @@ vector<int> MatmulObj::getWorkloadVector() const {
 
 vector<int> MatmulObj::getOpAttrVector() const {
     return {type.underlying(), transA, transB, enum_to_underlying(act)};
+}
+
+double MatmulObj::getComputeTime() const {
+    int64_t batchSize = b;
+    int64_t M = m;
+    int64_t N = n;
+    int64_t K = k;
+    double basicOps = 2.0 * batchSize * M * N * K;
+    double transposePenalty = 1.0;
+    if (transA || transB) {
+        transposePenalty = 1.05;
+    }
+    double actCost = 0.0;
+    if (act != ActType::None) {
+        actCost = batchSize * M * N * 0.1;
+    }
+    double biasCost = 0.0;
+    if (inputs.size() > 2) {
+        biasCost = batchSize * M * N;
+    }
+    double typeFactor = 1.0;
+    if (computeType == "half") {
+        typeFactor = 0.5;
+    } else if (computeType == "double") {
+        typeFactor = 2.0;
+    }
+    double totalOps = (basicOps * transposePenalty + actCost + biasCost) / typeFactor;
+    return totalOps / 5e9;
+}
+
+double MatmulObj::getMemoryCost() const {
+    double costA = inputs[0]->size();
+    double costB = inputs[1]->size();
+    double costBias = 0.0;
+    if (inputs.size() > 2) {
+        costBias = inputs[2]->size();
+    }
+    double costC = outputs[0]->size();
+    double cacheFactor = 0.2;
+    if (transA || transB) {
+        cacheFactor *= 1.5;
+    }
+    return (costA + costB) * cacheFactor + costBias + costC;
+}
+
+double MatmulObj::getParallelism() const {
+    double batchParallel = b;
+    double outputParallel = m * n;
+    double innerParallel = std::min(std::sqrt(k), 8.0);
+    double totalParallelism = batchParallel * outputParallel * innerParallel;
+    const double MAX_PARALLEL_UNITS = 4096.0;
+    double transposeFactor = 1.0;
+    if (transA && transB) {
+        transposeFactor = 0.9;
+    } else if (transA || transB) {
+        transposeFactor = 0.95;
+    }
+    return std::min(totalParallelism * transposeFactor, MAX_PARALLEL_UNITS);
 }
 
 } // namespace infini

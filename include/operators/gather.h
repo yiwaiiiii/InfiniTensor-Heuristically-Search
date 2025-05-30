@@ -42,6 +42,10 @@ class GatherObj : public GatherBaseObj {
     optional<vector<Shape>> inferShape(const TensorVec &inputs) override;
     vector<DataType> inferDataType(const TensorVec &inputs) const override;
 
+    double getComputeTime() const override;
+    double getMemoryCost() const override;
+    double getParallelism() const override;
+
   private:
     bool CheckIndexValid() const;
     vector<int> getWorkloadVector() const override;
@@ -71,7 +75,11 @@ class GatherElementsObj : public GatherBaseObj {
     std::string toString() const override;
     optional<vector<Shape>> inferShape(const TensorVec &inputs) override;
     vector<DataType> inferDataType(const TensorVec &inputs) const override;
-
+    
+    double getComputeTime() const override;
+    double getMemoryCost() const override;
+    double getParallelism() const override;
+    
   private:
     vector<int> getWorkloadVector() const override;
     vector<int> getOpAttrVector() const override;

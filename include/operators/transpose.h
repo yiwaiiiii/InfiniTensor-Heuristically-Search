@@ -14,6 +14,10 @@ class TransposeObj : public OperatorObj {
     int numOutputs() const override { return 1; }
     std::vector<int> getPermute() const { return transposePermute; }
 
+    double getComputeTime() const override;
+    double getMemoryCost() const override;
+    double getParallelism() const override;
+
   private:
     vector<int> transposePermute;
     vector<int> getWorkloadVector() const override;
@@ -37,6 +41,10 @@ class DepthToSpaceObj : public OperatorObj {
     auto getTransposeDim() const { return transposeDim; }
     auto getOutDim() const { return outDim; }
 
+    double getComputeTime() const override;
+    double getMemoryCost() const override;
+    double getParallelism() const override;
+    
   private:
     int blockSize;
     int D2SMode;

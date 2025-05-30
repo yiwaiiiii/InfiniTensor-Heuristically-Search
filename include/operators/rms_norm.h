@@ -27,6 +27,10 @@ class RMSNormObj : public OperatorObj {
     int numOutputs() const override { return 1; }
     int getDim() const { return dim; }
 
+    double getComputeTime() const override;
+    double getMemoryCost() const override;
+    double getParallelism() const override;
+
   private:
     vector<int> getWorkloadVector() const override;
     vector<int> getOpAttrVector() const override;

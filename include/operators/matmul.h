@@ -66,6 +66,10 @@ class MatmulObj : public OperatorObj {
     auto getBMNK() const { return tuple{b, m, n, k}; }
     std::string getComputeType() const { return computeType; }
 
+    double getComputeTime() const override;
+    double getMemoryCost() const override;
+    double getParallelism() const override;
+
   private:
     vector<int> getWorkloadVector() const override;
     vector<int> getOpAttrVector() const override;
