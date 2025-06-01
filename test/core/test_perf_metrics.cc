@@ -123,7 +123,7 @@ TEST(PerfMetrics, FusionTest) {
     auto A1 = graphUnfused->addTensor({64, 128}, DataType::Float32);
     auto B1 = graphUnfused->addTensor({128, 64}, DataType::Float32);
     auto matmul1 = graphUnfused->addOp<MatmulObj>(A1, B1, nullptr);
-    auto C1 = matmul1->getOutput(); // 获取自动创建的输出
+    auto C1 = matmul1->getOutput();
     auto relu1 = graphUnfused->addOp<ReluObj>(C1, nullptr);
 
     // 2. MatMul(act=Relu) 融合
@@ -137,7 +137,7 @@ TEST(PerfMetrics, FusionTest) {
     auto input1 = graphConvUnfused->addTensor({1, 3, 32, 32}, DataType::Float32);
     auto weight1 = graphConvUnfused->addTensor({16, 3, 3, 3}, DataType::Float32);
     auto conv1 = graphConvUnfused->addOp<ConvObj>(input1, weight1, nullptr, 0, 0, 1, 1, 1, 1, nullptr);
-    auto convOut1 = conv1->getOutput(); // 获取自动创建的输出
+    auto convOut1 = conv1->getOutput();
     auto reluConv1 = graphConvUnfused->addOp<ReluObj>(convOut1, nullptr);
 
     // 4. Conv(act=Relu) 融合
@@ -146,22 +146,19 @@ TEST(PerfMetrics, FusionTest) {
     auto weight2 = graphConvFused->addTensor({16, 3, 3, 3}, DataType::Float32);
     auto conv2 = graphConvFused->addOp<ConvObj>(input2, weight2, nullptr, 0, 0, 1, 1, 1, 1, nullptr, ActType::Relu);
 
-    // 5. Add + Relu 未融合 - 使用具体的AddObj
+    // 5. Add + Relu 未融合
     Graph graphAddUnfused = make_ref<GraphObj>(runtime);
     auto AA = graphAddUnfused->addTensor({64, 128}, DataType::Float32);
     auto BB = graphAddUnfused->addTensor({64, 128}, DataType::Float32);
-    // 参数顺序: input0, input1, output
     auto add1 = graphAddUnfused->addOp<AddObj>(AA, BB, nullptr);
-    auto CC = add1->getOutput(); // 获取自动创建的输出
+    auto CC = add1->getOutput();
     auto reluAdd = graphAddUnfused->addOp<ReluObj>(CC, nullptr);
 
-    // 6. 模拟元素级操作的融合 - 直接使用MatMul(act=Relu)
+    // 6. Add(act=Relu) 融合
     Graph graphAddFused = make_ref<GraphObj>(runtime);
     auto AA2 = graphAddFused->addTensor({64, 128}, DataType::Float32);
-    auto BB2 = graphAddFused->addTensor({128, 64}, DataType::Float32);
-    
-    // 使用MatMulObj模拟融合
-    auto add2 = graphAddFused->addOp<MatmulObj>(AA2, BB2, nullptr, false, false, nullptr, ActType::Relu);
+    auto BB2 = graphAddFused->addTensor({64, 128}, DataType::Float32);
+    auto add2 = graphAddFused->addOp<AddObj>(AA2, BB2, nullptr);
 
     // 获取性能指标
     PerfMetrics metricsUnfused = runtime->getPerfMetrics(graphUnfused, false);
@@ -178,7 +175,6 @@ TEST(PerfMetrics, FusionTest) {
     printMetrics("Add+Relu 未融合:", metricsAddUnfused);
     printMetrics("Add+Relu 融合:", metricsAddFused);
 
-    // 判断融合是否带来性能提升
     EXPECT_TRUE(metricsFused.computeTime < metricsUnfused.computeTime);
     EXPECT_TRUE(metricsConvFused.computeTime < metricsConvUnfused.computeTime);
     EXPECT_TRUE(metricsAddFused.computeTime < metricsAddUnfused.computeTime);

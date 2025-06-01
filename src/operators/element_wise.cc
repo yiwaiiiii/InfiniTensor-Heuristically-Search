@@ -63,10 +63,14 @@ double ElementWiseObj::getComputeTime() const {
 }
 
 double ElementWiseObj::getMemoryCost() const {
-    double inputsSize = inputs[0]->size() + inputs[1]->size();
+    double input0Size = inputs[0]->size();
+    double input1Size = inputs[1]->size();
     double outputSize = outputs[0]->size();
-    return inputsSize + outputSize;
+    // 假设大部分情况下输入和输出可以复用缓存，实际访问量略大于输出
+    double memoryEfficiency = 1.1; // 可根据实际情况调整
+    return outputSize * memoryEfficiency + std::min(input0Size, input1Size) * 0.1;
 }
+
 
 double ElementWiseObj::getParallelism() const {
     double outputSize = outputs[0]->size();

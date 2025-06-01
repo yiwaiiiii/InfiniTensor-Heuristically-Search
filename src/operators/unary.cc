@@ -174,7 +174,7 @@ double HardtanhObj::getMemoryCost() const {
 }
 
 double HardtanhObj::getParallelism() const {
-    return std::min(outputs[0]->size(), 1024.0);
+    return std::min(static_cast<double>(outputs[0]->size()), 1024.0);
 }
 
 FillObj::FillObj(GraphObj *graph, Tensor input, Tensor output, float value)
@@ -213,7 +213,7 @@ double FillObj::getMemoryCost() const {
 }
 
 double FillObj::getParallelism() const {
-    return std::min(outputs[0]->size(), 1024.0);
+    return std::min(static_cast<double>(outputs[0]->size()), 1024.0);
 }
 
 L2LossObj::L2LossObj(GraphObj *graph, Tensor input, Tensor output)
@@ -253,7 +253,7 @@ double L2LossObj::getMemoryCost() const {
 }
 
 double L2LossObj::getParallelism() const {
-    return std::min(inputs[0]->size() / 2, 256.0);
+    return std::min(static_cast<double>(inputs[0]->size()) / 2, 256.0);
 }
 
 CastObj::CastObj(GraphObj *graph, Tensor input, Tensor output, CastType type)
@@ -331,7 +331,7 @@ double CastObj::getMemoryCost() const {
 }
 
 double CastObj::getParallelism() const {
-    return std::min(outputs[0]->size(), 1024.0);
+    return std::min(static_cast<double>(outputs[0]->size()), 1024.0);
 }
 
 ShapeObj::ShapeObj(GraphObj *graph, Tensor input, Tensor output)
@@ -400,7 +400,7 @@ double PReluObj::getMemoryCost() const {
 }
 
 double PReluObj::getParallelism() const {
-    return std::min(outputs[0]->size(), 1024.0);
+    return std::min(static_cast<double>(outputs[0]->size()), 1024.0);
 }
 
 LeakyReluObj::LeakyReluObj(GraphObj *graph, Tensor input, Tensor output,
@@ -445,7 +445,7 @@ double LeakyReluObj::getMemoryCost() const {
 }
 
 double LeakyReluObj::getParallelism() const {
-    return std::min(outputs[0]->size(), 1024.0);
+    return std::min(static_cast<double>(outputs[0]->size()), 1024.0);
 }
 
 LogObj::LogObj(GraphObj *graph, Tensor input, Tensor output, LogType type)
@@ -484,7 +484,7 @@ double LogObj::getMemoryCost() const {
 }
 
 double LogObj::getParallelism() const {
-    return std::min(outputs[0]->size(), 1024.0);
+    return std::min(static_cast<double>(outputs[0]->size()), 1024.0);
 }
 
 EluObj::EluObj(GraphObj *graph, Tensor input, Tensor output, float alpha)
@@ -525,7 +525,7 @@ double EluObj::getMemoryCost() const {
 }
 
 double EluObj::getParallelism() const {
-    return std::min(outputs[0]->size(), 1024.0);
+    return std::min(static_cast<double>(outputs[0]->size()), 1024.0);
 }
 
 }; // namespace infini
